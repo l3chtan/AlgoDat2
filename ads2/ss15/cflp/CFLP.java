@@ -1,5 +1,12 @@
 package ads2.ss15.cflp;
 
+import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Collections;
+import java.util.List;
+
+
 /**
  * Klasse zum Berechnen der L&ouml;sung mittels Branch-and-Bound.
  * Hier sollen Sie Ihre L&ouml;sung implementieren.
@@ -7,27 +14,149 @@ package ads2.ss15.cflp;
 public class CFLP extends AbstractCFLP {
 
 	private CFLPInstance instance;
-/*	private Facility[] facilities;
-	public final int threshold;
-	public final int distanceCosts;
-	public int[] distances;*/
-
-	private int[][] subSolution;	
+	private int upperBound;
+	private int[] sol;
+	private int numC, numF;
+	private int[] shortest;
+	private int cost;
+	private int[] cheapest;
+	private int[][] lst;
+	private int[][] arr;
+	private int counter;
+	private int[][] bList;
+	private int[] shortList;	
+	private boolean flag;
+	private boolean[] full;
+	private int[] cList;
 
 
 	public CFLP(CFLPInstance instance) {
 		// TODO: Hier ist der richtige Platz fuer Initialisierungen
 		this.instance = instance;
-		subSolution = new int[instance.getNumFacilities()][];
-		for(int i=0;i<subSolution.length;i++){
-				subSolution[i] = initArray(instance.getNumCustomers());
+		numC = instance.getNumCustomers();
+		numF = instance.getNumFacilities();
+		this.upperBound = Integer.MAX_VALUE;
+		setSolution(Integer.MAX_VALUE, initArray(instance.getNumCustomers()));
+		sol =  initArray(instance.getNumCustomers());
+
+		int counter = 0;
+		flag = false;
+		full = new boolean[numF];
+		Arrays.fill(full,false);
+		shortest = new int[numC];
+		int len = 0; 
+		// int[][] t = new int[numC][2];
+		for(int i=0;i<numC;i++){
+			len = Integer.MAX_VALUE;
+			for(int j=0;j<numF;j++){
+				if(instance.distance(j,i) < len){
+					len = instance.distance(j,i);
+
+				}
+			}	
+
+			shortest[i] = len;
 		}
-/*		this.threshold = instance.getThreshold();
-		this.distanceCosts = instance.distanceCosts;
-		facilities = new Facility[instance.getNumFacilities()];
-		for(Facility f: facilities){
-			f = new Facility(instance.)
-		}*/
+		
+
+		lst = new int[numC][numF];
+
+			for(int j=0;j<numC;j++){
+				for(int i=0;i<numF;i++){
+					lst[j][i] = instance.distances[i][j];
+				}
+			}
+
+
+		cheapest = new int[numF];
+		int[][] near = new int[numC][numF];
+		int[][] t = new int[numF][2];
+		for(int i=0;i<numC;i++){
+			for(int j=0;j<numF;j++){
+			t[j][0] = j;
+			t[j][1] = lst[i][j];
+		}
+		Arrays.sort(t, new Comparator<int[]>() {
+		    @Override
+		    public int compare(int[] o1, int[] o2) {
+		        return Integer.compare(o2[1], o1[1]);
+		    }
+		});
+		for(int k=0;k<numF;k++){
+			cheapest[k] = t[k][0];
+		}
+		near[i] = cheapest;
+		}
+		lst = near;
+
+
+
+		arr = new int[numF][numC];	
+
+		int[][] custs = new int[numC][2];
+		for(int j=0;j<numF;j++){
+		for(int i=0;i<numC;i++){
+			custs[i][0] = i;
+			custs[i][1] = instance.distances[j][i];
+		}
+
+		Arrays.sort(custs, new Comparator<int[]>() {
+		    @Override
+		    public int compare(int[] o1, int[] o2) {
+		        return Integer.compare(o1[1], o2[1]);
+		    }
+		});
+			for(int m=0;m<numC;m++){
+			arr[j][m] = custs[m][0];
+		}
+			}
+
+
+		bList = new int[numC][3];
+		shortList = new int[numC];
+
+		for(int i=0;i<numC;i++){
+			bList[i][0] = i;
+			bList[i][1] = instance.bandwidthOf(i);
+		}
+		Arrays.sort(custs, new Comparator<int[]>() {
+		    @Override
+		    public int compare(int[] o1, int[] o2) {
+		        return Integer.compare(o2[1], o1[1]);
+		    }
+		});
+		for(int i=0;i<numC;i++){
+			bList[i][2] = getMinF(bList[i][0]);
+			shortList[i] = bList[i][0];
+		}
+		cost = value(sol,shortest,true);
+
+		int ratio = numC/numF;
+		System.out.println("ratio: "+ratio);
+		cList = new int[numC];
+		List<Integer> al = new ArrayList<Integer>();
+		for(int i=0;i<numC;i++){
+			al.add(i);
+			cList[i] = i;
+		}
+		if(ratio <= 3){
+		Collections.shuffle(al);
+		for(int i=0;i<numC;i++){
+			cList[i] = al.get(i);
+		}
+		}
+	}
+
+	private int getMinF(int n){
+		int cnt = Integer.MAX_VALUE;
+		int idx = 0;
+		for(int i=0;i<numF;i++){
+			if(instance.distances[i][n] < cnt){
+				cnt = instance.distances[i][n];
+				idx = i;
+			}
+		}
+		return idx;
 	}
 
 	/**
@@ -41,158 +170,179 @@ public class CFLP extends AbstractCFLP {
 	 * </p>
 	 */
 	@Override
-	public void run() {
-		// TODO: Diese Methode ist von Ihnen zu implementieren
-		int[] check = branch(initArray(instance.getNumCustomers()));
-
-
+	public void run(){
+		branch(0, sol,0);	
+		System.out.println("####### " + counter + " #######");
 	}
 
-	private int[] branch(int[] check){
-		int idx = -1, bwidth;
-		for(int i=0;i<instance.getNumFacilities();i++){
-			bwidth = -1;
-			if(arraySum(subSolution) >= instance.maxBandwith || customerSum(subSolution) >= instance.maxCustomers[i]){
-				return check;
-			}
-			for(int j=0;j<instance.getNumCustomers();j++){
-				if(instance.bandwithOf(j) > bwidth && check[j] < 1){
-					bwidth = instance.bandwithOf(j);
-					idx = j;
+
+	private int[] initArray(int length){
+		int[] array = new int[length];
+		Arrays.fill(array,-1);
+		return array;
+	}
+
+	
+	private void branch(int facility, int[] solution, int idx){
+		// System.out.println(idx);
+
+		for(int i=0;i<numF;i++){
+			if(!flag){
+				if(!full[i]){
+					if(idx < numC)
+					bound(i,solution,idx);
 				}
+			}else {
+				flag = false;
+				return;
 			}
-			check[idx] = 1;
-			subSolution[i][idx] = bwidth;
+	 		// if(notTooMany(solution) && bandOK(solution))
+	 	// 	if(idx < numC-1){
+	 	// 		if(solution[arr[i][idx]] == -1){
+			// 	System.out.println("i: "+i+" - idx: "+ arr[i][idx]);
+			// 	bound(i/*lst[idx][i]*/, solution, idx);	
+			// 	}else{
+			// 		while( idx < numC-1 && solution[arr[i][++idx]] != -1){
+			// 		}
+			// 	System.out.println("??? i: "+i+" - idx: "+ arr[i][idx]);
+			// 		bound(i,solution, idx);
+			// }
+			// }
 		}
-		return branch(check);
 	}
 
-	private int customerSum(int[] array){
+	private void bound(int facility, int[] solution, int pos){
+		counter++;
+		// System.out.println("--- " +idx+" ---");
+		// for(int j=0;j<numC;j++){
+		// 	System.out.println("idx: "+j+" - solution: " + solution[j]);
+		// }
+		
+		if(!cont(-1,solution)/* && notTooMany(solution) && bandOK(solution)*/){
+			flag = true;
+			if(setSolution(cost, solution.clone())){
+				upperBound = cost; 
+				// if(upperBound <= instance.getThreshold()){
+				// 	flag = true;	
+				// }
+			}
+			if(pos < numC)
+			solution[cList[pos]] = -1;
+			return;
+		}
+
+		int cC = currC(solution, facility);
+		if(checkBandwidth(facility, solution)+instance.bandwidthOf(cList[pos]) <= instance.maxBandwidth && 
+			instance.maxCustomersFor(facility)>cC){
+			solution[cList[pos]] = facility;
+			cost = value(solution,shortest,true)+ instance.calcObjectiveValue(solution);
+
+			if(cost >= upperBound){
+				solution[cList[pos]] = -1;
+				return;
+			}
+			// System.out.println("lower: "+cost + " - upper: "+ upperBound);
+			branch(facility, solution, ++pos);
+			full[facility] = false;
+			if(pos < numC)
+				solution[cList[pos]] = -1;
+		return;
+
+		}
+		if(cC >= instance.maxCustomersFor(facility))
+			full[facility] = true;
+	}
+
+	// private int nearest(int[] a, int n){
+	// 	int[] k = instance.distances[n];
+	// 	int p = Integer.MAX_VALUE;
+	// 	int h = 0;
+	// 	boolean flag = false;
+
+	// 	while(!flag){
+	// 	for(int i=h;i< numC;i++){
+	// 		if(k[i] <p){
+	// 			h = i;
+	// 		}
+	// 	}
+	// 	if(a[h] == -1){
+	// 		flag = true;	
+	// 	}
+	// }
+	// 	return h;
+	// }
+
+	// private boolean bandOK(int[] a){
+	// 	for(int i=0;i<numF;i++){
+
+	// 		if(checkBandwidth(i, a) > instance.maxBandwidth){
+	// 			return false;
+	// 		}
+	// 	}
+	// 	return true;
+	// }
+
+	// private boolean notTooMany(int[] a){
+	// 	int[] f = new int[numF];
+	// 	Arrays.fill(f,0);
+	// 	for(int i:a){
+	// 		if(i >= 0)
+	// 		f[i]++;
+	// 	}
+	// 	for(int i=0;i<numF;i++){
+	// 		if(f[i] > instance.maxCustomersFor(i)){
+	// 			return false;
+	// 		}
+	// 	}
+	// 	return true;
+	// }
+
+	private int currC(int[] a,int f){
 		int cnt = 0;
-		for(int i=0;i<array.length;i++){
-			if(array[i] > -1){
+		for(int i:a){
+			if(i == f){
 				cnt++;
 			}
 		}
 		return cnt;
 	}
 
-	private int arraySum(int[] array){
-		int cnt;
-		for(int i=0;i<array.length;i++){
-			if(array[i] > -1){
-				cnt += array[i];
+	private int value(int[] a, int[] b, boolean flag){
+		int result = 0;
+		for(int i=0;i<a.length;i++){
+			if(a[i] == -1){
+				result += instance.distanceCosts*b[i];
+			} else if(!flag && a[i] != -1){
+				result += instance.distanceCosts*b[i];
+			}
+		}	
+		return result;
+	}
+	// private int getbList(int i){
+	// 	for(int[] k: bList){
+	// 		if(k[0] == i){
+	// 			return k[2];
+	// 		}
+	// 	}
+	// 	return 0;
+	// }
+
+	private int checkBandwidth(int facility, int[] a){
+		int cnt = 0;
+		for(int i=0;i<a.length;i++){
+			if(a[i] == facility){
+				cnt += instance.bandwidthOf(i);
 			}
 		}
 		return cnt;
 	}
 
-	private int[] initArray(int size){
-		int[] newArray = new int[size];
-		for(int i=0;i<size;i++){
-			newArray[i] = -1;
+	private boolean cont(int k, int[] a){
+		for(int i:a){
+			if(i == k){
+				return true;
+			}
 		}
-		return newArray;
+		return false;
 	}
-/*
-	public class Facility {
-
-		public final int maxBandwith;
-		public final int maxCustomers;
-		public final int openingCosts;
-
-		public Facility(int maxBandwith, int maxCustomers, int openingCosts){
-			this.maxBandwith = maxBandwith;
-			this.maxCustomers = maxCustomers;
-			this.openingCosts = openingCosts;
-		}
-	}
-
-	public class Customer {
-
-		private static int id;
-		public int bandwith;
-
-		public Customer(int bandwith){
-			this.id++;
-			this.bandwith = bandwith;
-			this.distances = distances;
-		}
-
-		public getId(){
-			return this.id;
-		}
-	}*/
-
-	
-	public class Facility {
-
-		private int id;
-		public final int maxCustomers;
-		public final int openingCosts;
-		private int usedBandwidth;
-		private ArrayList<Customer> c;
-		private int[] distance;
-
-		public Facility(int maxCustomers, int openingCosts, int id){
-			this.id = id;
-			this.maxCustomers = maxCustomers;
-			this.openingCosts = openingCosts;
-			this.usedBandwidth = 0;
-			c = new ArrayList<Customer>();
-		}
-
-		public boolean full(){
-			return maxCustomers >= c.size() ? true : false;
-		}
-
-		public int getId(){
-			return id;
-		}
-
-		public void setCustomer(Customer customer){
-				// if(c.size() < maxCustomers && usedBandwidth+customer.getBandwidth() <= maxBandwith){
-					c.add(customer);
-					customer.setTo(id)	;
-					usedBandwidth += customer.getBandwidth();
-					// return true;
-			// 	}
-			// return false;
-		}
-
-		public Customer getCustomer(int i){
-			return c.get(i);
-		}
-	}
-
-	public class Customer {
-
-		private int id;
-		private int bandwith;
-		/*private int[] distances;*/
-		private  int fId;
-
-		public Customer(int bandwith, int id){
-			this.id = id;
-			this.bandwith = bandwith;
-			/*this.distances = distances*/;
-			fId = -1;
-		}
-
-		public int getId(){
-			return this.id;
-		}
-
-		public int getBandwidth(){
-			return bandwith;
-		}
-
-		public void setTo(int id){
-			fId = id;
-		}
-
-		public boolean isSet(){
-			return fId > -1 ? true : false;
-		}
 }
-	}
