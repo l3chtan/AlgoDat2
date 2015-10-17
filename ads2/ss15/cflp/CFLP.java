@@ -25,7 +25,6 @@ public class CFLP extends AbstractCFLP {
 
 
 	public CFLP(CFLPInstance instance) {
-		// TODO: Hier ist der richtige Platz fuer Initialisierungen
 		this.instance = instance;
 		numC = instance.getNumCustomers();
 		numF = instance.getNumFacilities();
@@ -81,6 +80,7 @@ public class CFLP extends AbstractCFLP {
 		}
 
 
+		/* sort in random order */
 
 		// int ratio = numC/numF;
 		// cList = new int[numC];
